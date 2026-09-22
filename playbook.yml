@@ -1,0 +1,82 @@
+# Play 1: Webserver configureren
+- name: Configureer webserver
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Installeer Apache en PHP
+      ansible.builtin.apt:
+        name:
+          - apache2
+          - php
+          - libapache2-mod-php
+        state: present
+        update_cache: true
+
+    - name: Zorg dat Apache draait en enabled is
+      ansible.builtin.service:
+        name: apache2
+        state: started
+        enabled: true
+
+    - name: Open firewall poort 80 (indien ufw actief)
+      community.general.ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+# Play 2: Databaseserver configureren
+- name: Configureer databaseserver
+  hosts: dbservers
+  become: true
+  tasks:
+    - name: Installeer MariaDB
+      ansible.builtin.apt:
+        name:
+          - mariadb-server
+          - python3-pymysql
+        state: present
+        update_cache: true
+
+    - name: Zorg dat MariaDB draait en enabled is
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: Maak een database aan
+      community.mysql.mysql_db:
+        name: webapp_db
+        state: present
+        login_unix_socket: /run/mysqld/mysqld.sock
+
+    - name: Maak een database user aan
+      community.mysql.mysql_user:
+        name: webapp_user
+        password: "changeme"
+        priv: "webapp_db.*:ALL"
+        host: "%"
+        state: present
+        login_unix_socket: /run/mysqld/mysqld.sock
+
+# Play 3: PHP-website uploaden (onafhankelijke play)
+- name: Upload PHP-website naar webserver
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Kopieer PHP-bestanden naar de webroot
+      ansible.builtin.copy:
+        src: files/website/
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Verwijder de standaard index.html (indien aanwezig)
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Herstart Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted

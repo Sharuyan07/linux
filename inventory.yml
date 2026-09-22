@@ -1,0 +1,13 @@
+all:
+  children:
+    webservers:
+      hosts:
+        webserver:
+          ansible_host: 192.168.224.139
+    dbservers:
+      hosts:
+        databaseserver:
+          ansible_host: 192.168.224.142
+  vars:
+    ansible_user: sharuyan
+    ansible_ssh_private_key_file: ~/.ssh/id_ed25519
